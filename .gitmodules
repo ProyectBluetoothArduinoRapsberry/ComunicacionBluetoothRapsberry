@@ -1,0 +1,3 @@
+[submodule "sensor_completo/ArduinoThread"]
+	path = sensor_completo/ArduinoThread
+	url = https://github.com/ivanseidel/ArduinoThread.git
