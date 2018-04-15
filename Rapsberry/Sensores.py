@@ -31,12 +31,19 @@ BOTONES = {	"Bomba": '1', 	# ["Nombre funcion"] : 'numero', el nombre de funcion
 
 leido = ""  							# Variable que va guardando todo lo que se recibe de la arduino
 anteriorFecha = ""						# Variable que se usa para verificar la fecha de los archivos de los datos y poder separar los datos de diferentes fechas en diferentes archivos
-mensaje = None							# Variable que tendra los mensajes que se mostraran en la aplicacion
+
 historial = []							# Historial de mensajes de la aplicacion
 lineas = []								# Variable que va acumulando las lineas que se guardan en el archivo de datos
 arduino = None							# Se debe iniciar desde aca la variable que se asocia con la conexion bluetooth de arduino
-ventana = None
-mensajeVentana = None
+ventana = None							# Variable que contendra toda la funcionalidad de la ventana
+
+mensaje = None							# Variable que tendra los mensajes que se mostraran en la aplicacion
+mensajeVentana = None					# Variable que contendra el texto de los mensajes de la variable anterior
+distancia = None						# Variable que tendra la distancia que se mostrara en la aplicacion
+distanciaVentana = None					# Variable que contendra el texto de la variable anterior
+duracion = None							# Variable que tendra la duracion que se mostraran en la aplicacion
+duracionVentana = None					# Variable que contendra el texto de la variable anterior
+
 botones = {}							#Definicion de los botones de la ventana, se usa para cambiar la imagen cuando pasa de on-off off-on
 imageOn = None							#Definicion de la imagen usada en el boton para mostrar que esta prendido
 imageOff = None							 #Definicion de la imagen usada en el boton para mostrar que esta apagado
@@ -137,11 +144,18 @@ def ActualizarEstados(linea):
 		estado = datos.pop(0).strip()
 		if(estados[campo] != estado):
 			estados[campo] = estado
-				
+
 	# Cambiar el boton de on a off o viceversa si esta cambio en la Arduino
 	for estado in BOTONES.keys():
 		cambiarBoton(estado)
+	# Atualizar los datos de distancia y duracionVentana
+	if distancia != None and distanciaVentana != None:		# Verifica que ya se haya creado la ventana
+		distancia.set("Distancia: " + estados["distancia"])				# Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
+		distanciaVentana.grid(row=0, column=1, pady=5)
 
+	if duracion != None and duracionVentana != None:		# Verifica que ya se haya creado la ventana
+		duracion.set("Duracion: " + estados["duracion"])				# Las siguientes 2 lineas establecen la duracion que la arduino envian constantemente
+		duracionVentana.grid(row=1, column=1, pady=5)
 
 def comando(boton, numero):		# Funcion que envia el comando a la arduino
 	imprimir("Se envio el comando: " + boton + ", #" + str(numero))	# Mostrar en consola
@@ -208,7 +222,15 @@ imprimir("Creando Ventana...")
 
 mensaje = Tkinter.StringVar()
 mensajeVentana = Tkinter.Label(ventana, textvariable=mensaje, relief=Tkinter.RAISED, bg="white", fg="gray")
-mensajeVentana.grid(row=1, column = 2)
+mensajeVentana.grid(row=0, column=1, rowspan=CANT_MENSAJES, padx=50, pady=20)
+
+distancia = Tkinter.StringVar()
+distanciaVentana = Tkinter.Label(ventana, textvariable=distancia, relief=Tkinter.RAISED)
+distanciaVentana.grid(row=1, column=1, pady=5)
+
+duracion = Tkinter.StringVar()
+duracionVentana = Tkinter.Label(ventana, textvariable=duracion, relief=Tkinter.RAISED)
+duracionVentana.grid(row=3, column=1, pady=5)
 
 ventana.after(1, comunicacion)
 imprimir("Creando Ventana: Finalizo correctamente")
