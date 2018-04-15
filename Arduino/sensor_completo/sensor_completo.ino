@@ -13,8 +13,8 @@ const int VALVULA1 = 12;
 const int VALVULA2 = 11;
 const int VALVULA3 = 10;
 
-int duracion;                     
-int distancia;
+unsigned long duracion;                     
+unsigned long distancia;
 unsigned long tiempoTrig= 0;          // Variable para controlar los tiempos (reemplazo de los delay) -- Primer delay del programa anterior 
 unsigned long tiempoControl= 0;       // Variable para controlar los tiempos (reemplazo de los delay) -- Segundo delay del programa anterior
 
@@ -88,7 +88,6 @@ void enviarDatos(){                                                       // Fun
   bluetooth.println(LIMIT);                                                     // Para separar el dato de distancia del dato duracion se adiciona entre ellos una coma
   bluetooth.println(duracion);                                                  // Se envia el dato de duracion
   bluetooth.println(linea);                                                     // Y finalmente se envia lo que esta guardado en la variable linea
-
 }
 
 void setup() {

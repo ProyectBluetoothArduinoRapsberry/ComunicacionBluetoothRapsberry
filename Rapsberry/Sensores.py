@@ -28,6 +28,8 @@ BOTONES = {	"Bomba": '1', 	# ["Nombre funcion"] : 'numero', el nombre de funcion
 			"Valvula1": '2',
 			"Valvula2": '3',
 			"Valvula3": '4'}
+port = 1
+address = "98:D3:32:30:D6:ED"			# Id del bluetooth del arduino
 
 leido = ""  							# Variable que va guardando todo lo que se recibe de la arduino
 anteriorFecha = ""						# Variable que se usa para verificar la fecha de los archivos de los datos y poder separar los datos de diferentes fechas en diferentes archivos
@@ -67,7 +69,7 @@ def imprimir(texto):				# Funcion para mostrar los mensajes de la aplicacion
 		if len(historial) > CANT_MENSAJES:				# Si el historial llego a la cantidad definida, se elimina el mensaje mas antiguo
 			historial.pop()								# Elimina el mensaje mas antiguo
 		mensaje.set('\n'.join(historial))				# Las siguientes 2 lineas establecen el historial de mensajes en la ventana
-		mensajeVentana.grid(row=0, column=1, rowspan=CANT_MENSAJES, padx=50, pady=20)
+		mensajeVentana.grid(row=2, column=1, rowspan=CANT_MENSAJES, padx=50, pady=20)
 
 
 def writeFile(linea):		# Funcion que va acumulando los datos que se reciben de la Arduino y guarda esos datos en el archivo correspondiente
@@ -211,8 +213,7 @@ for boton in BOTONES.keys():		# Creacion de los botones
 imprimir("Creando BOTONES: Finalizo correctamente")
 
 imprimir("Estableciendo conexion bluetooth...")
-port = 1
-address = "98:D3:32:30:D6:ED"			# Id del bluetooth del arduino
+
 arduino.connect((address, port))		# Establecer los datos de conexion
 arduino.setblocking(0)					# Establecer la conexion de tal manera que no bloquee el programa
 
@@ -222,7 +223,7 @@ imprimir("Creando Ventana...")
 
 mensaje = Tkinter.StringVar()
 mensajeVentana = Tkinter.Label(ventana, textvariable=mensaje, relief=Tkinter.RAISED, bg="white", fg="gray")
-mensajeVentana.grid(row=0, column=1, rowspan=CANT_MENSAJES, padx=50, pady=20)
+mensajeVentana.grid(row=2, column=1, rowspan=CANT_MENSAJES, padx=50, pady=20)
 
 distancia = Tkinter.StringVar()
 distanciaVentana = Tkinter.Label(ventana, textvariable=distancia, relief=Tkinter.RAISED)
