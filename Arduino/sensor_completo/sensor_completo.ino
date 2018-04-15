@@ -20,7 +20,7 @@ unsigned long tiempoControl= 0;       // Variable para controlar los tiempos (re
 
 const long INTERVALO_TRIG = 1;          // Define en milisegundos el primer delay del programa anterior
 const long INTERVALO_CONTROL = 300;     // Define en milisegundos el segundo delay del programa anterior 
-const long INTERVALO_ENVIAR = 20000;    // Define en milisegundos cada cuanto se enviara la informacion a la raspberry
+const long INTERVALO_ENVIAR = 500;    // Define en milisegundos cada cuanto se enviara la informacion a la raspberry
 const long INTERVALO_RECIBIR = 100;     // Define en milisegundos cada cuanto se recibira la informacion a la raspberry
 
 ThreadController controlHilos = ThreadController(); // Funciones para la creacion de hilos

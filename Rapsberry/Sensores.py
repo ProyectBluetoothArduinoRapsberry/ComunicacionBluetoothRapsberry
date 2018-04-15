@@ -37,6 +37,18 @@ lineas = []								# Variable que va acumulando las lineas que se guardan en el 
 arduino = None							# Se debe iniciar desde aca la variable que se asocia con la conexion bluetooth de arduino
 ventana = None
 mensajeVentana = None
+botones = {}							#Definicion de los botones de la ventana, se usa para cambiar la imagen cuando pasa de on-off off-on
+imageOn = None							#Definicion de la imagen usada en el boton para mostrar que esta prendido
+imageOff = None							 #Definicion de la imagen usada en el boton para mostrar que esta apagado
+# Guarda los estados de los sensores y la informacion de la distancia y duracion
+estados = 	{ 	"distancia" : 0,
+				"duracion" : 0,
+				"Trig" : "OFF",
+				"Eco" : "OFF",
+				"Bomba" : "OFF",
+				"Valvula1" : "OFF",
+				"Valvula2" : "OFF",
+				"Valvula3" : "OFF"}
 
 
 def imprimir(texto):				# Funcion para mostrar los mensajes de la aplicacion
@@ -101,21 +113,49 @@ def comunicacion():			# Funcion que va leyendo los datos que llegan de la arduin
 			rec = leido[:limite]						# Obtiene una linea de lo que va acumulado desde ultimo separador encontrado hasta el siguiente
 
 			rec = filter(lambda x: x in LIMPIAR, rec) 	# Las Siguientes dos lineas eliminar cualquier letra que sea diferente a lo que se envio desde la arduino
+
 			rec = rec.replace('\n', '').replace('\r','')
 
 			if rec:										# Verificar que en rec si haya algo
 				writeFile(rec)							# Envia la linea a la funcion writeFile
+				ActualizarEstados(rec)
+
+
 			leido = leido[limite+1:]					# Deja lista la variable leido para empezar a acumular desde el ultimo separador encontrado
 
 
 	ventana.after(1, comunicacion)  			# Permite ejecutar continuamente esta funcion (comunicacion-ejecuta la funcion cada 1 milesima de segundo)
 
+def ActualizarEstados(linea):
+	global estados
+	# Cada linea viene de la siguiente forma  -distancia,duracion,estadoTrig,estadoEco,estadoBomba,estadoValvula1,estadoValvula2,estadoValvula3
+	datos = linea.split(",")	# Obtiene la lista donde cada elemento se obtiene separando donde hay comas
+	# Lista de control usada en para que los datos de la linea coincidan con lo que hay en los estados
+	campos = ["distancia","duracion","Trig","Eco","Bomba","Valvula1","Valvula2","Valvula3"]
 
+	for campo in campos:
+		estado = datos.pop(0).strip()
+		if(estados[campo] != estado):
+			estados[campo] = estado
+				
+	# Cambiar el boton de on a off o viceversa si esta cambio en la Arduino
+	for estado in BOTONES.keys():
+		cambiarBoton(estado)
 
 
 def comando(boton, numero):		# Funcion que envia el comando a la arduino
 	imprimir("Se envio el comando: " + boton + ", #" + str(numero))	# Mostrar en consola
+	cambiarBoton(boton)
 	arduino.send(numero)		# Envio del numero a la arduino
+
+def cambiarBoton(estado):
+	global estados
+	if estados[estado] == "ON":
+		botones[estado].configure(image=imageOn)
+		botones[estado].image = imageOn
+	else:
+		botones[estado].configure(image=imageOff)
+		botones[estado].image = imageOff
 
 
 def salir(signal=None, frame=None):				# Funcion que se ejecuta cuando se cierra el programa
@@ -135,9 +175,6 @@ def salir(signal=None, frame=None):				# Funcion que se ejecuta cuando se cierra
 	sys.exit(0)
 
 
-
-
-
 atexit.register(salir)							# Se registra la funcion salir. Cuando el programa se cierra, se ejecuta la funcion salir
 signal.signal(signal.SIGINT, salir)
 
@@ -149,10 +186,13 @@ arduino = bluetooth.BluetoothSocket( bluetooth.RFCOMM )	# Inicializar la conexio
 
 
 imprimir("Creando BOTONES...")
-for boton in BOTONES.keys():		# Creacion de los botones
-	botonTemporal = Tkinter.Button(ventana, text = boton, width=10, command = lambda a = boton, b = BOTONES[boton]: comando(a, b))
-	botonTemporal.grid(row=(int(BOTONES[boton])+1), column = 0)
+imageOn = Tkinter.PhotoImage(file="images/on.png")
+imageOff = Tkinter.PhotoImage(file="images/off.png")
 
+for boton in BOTONES.keys():		# Creacion de los botones
+	botonTemporal = Tkinter.Button(ventana, text=boton, image=imageOff, compound="left", width=100, command = lambda a=boton, b=BOTONES[boton]: comando(a, b))
+	botones[boton] = botonTemporal
+	botonTemporal.grid(row=(int(BOTONES[boton])+1), column = 0)
 
 imprimir("Creando BOTONES: Finalizo correctamente")
 
@@ -169,9 +209,6 @@ imprimir("Creando Ventana...")
 mensaje = Tkinter.StringVar()
 mensajeVentana = Tkinter.Label(ventana, textvariable=mensaje, relief=Tkinter.RAISED, bg="white", fg="gray")
 mensajeVentana.grid(row=1, column = 2)
-
-w = Tkinter.Canvas(ventana, width=200, height=100)
-w.grid(row=0, column=1)
 
 ventana.after(1, comunicacion)
 imprimir("Creando Ventana: Finalizo correctamente")
