@@ -37,29 +37,33 @@ void recibirComandos(){                           // Funcion que usara el hilo p
     int comando = bluetooth.read();               // Lee el numero que se envia desde la raspberry y lo guarda en la variable comando
     switch(comando){                              // Si la variable comando es igual a 1, se ejecuta la parte que dice case 1: hasta donde dice break
                                                    // Si la variable comando es igual a 2, se ejecuta la parte que dice case 2: hasta donde dice break y asi sucesivamente
-      case 5:
-        digitalWrite(BOMBA, HIGH);
+      case 1:
+        if(digitalRead(BOMBA) == HIGH){
+          digitalWrite(BOMBA, LOW);        
+        }else{
+          digitalWrite(BOMBA, HIGH);  
+        }              
         break;
-      case 6:
-        digitalWrite(BOMBA, LOW);
+      case 2:
+        if(digitalRead(VALVULA1) == HIGH){
+          digitalWrite(VALVULA1, LOW);        
+        }else{
+          digitalWrite(VALVULA1, HIGH);  
+        }                  
         break;
-      case 7:
-        digitalWrite(VALVULA1, HIGH);
+      case 3:
+        if(digitalRead(VALVULA2) == HIGH){
+          digitalWrite(VALVULA2, LOW);        
+        }else{
+          digitalWrite(VALVULA2, HIGH);  
+        }                        
         break;
-      case 8:
-        digitalWrite(VALVULA1, LOW);
-        break;
-      case 9:
-        digitalWrite(VALVULA2, HIGH);
-        break;
-      case 10:
-        digitalWrite(VALVULA2, LOW);
-        break;
-      case 12:
-        digitalWrite(VALVULA3, HIGH);
-        break;
-      case 13:
-        digitalWrite(VALVULA3, LOW);
+      case 4:
+        if(digitalRead(VALVULA3) == HIGH){
+          digitalWrite(VALVULA3, LOW);        
+        }else{
+          digitalWrite(VALVULA3, HIGH);  
+        }                              
         break;
       default:                                // En caso de que el comando recibido no sea ningun numero del 1 al trece se ejecuta esta parte (No ejecutaria nada)
         break;
