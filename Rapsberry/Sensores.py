@@ -27,7 +27,8 @@ LIMPIAR = set(string.printable)	# Se usa para quitar los caracteres que llegan c
 BOTONES = {	"Bomba": '1', 	# ["Nombre funcion"] : 'numero', el nombre de funcion puede ser cualquiera pero el numero debe coincidir con el numero del comando en arduino
 			"Valvula1": '2',
 			"Valvula2": '3',
-			"Valvula3": '4'}
+			"Valvula3": '4',
+			"ModoManual": '5'}
 port = 1
 address = "98:D3:32:30:D6:ED"			# Id del bluetooth del arduino
 
@@ -57,7 +58,8 @@ estados = 	{ 	"distancia" : 0,
 				"Bomba" : "OFF",
 				"Valvula1" : "OFF",
 				"Valvula2" : "OFF",
-				"Valvula3" : "OFF"}
+				"Valvula3" : "OFF",
+				"ModoManual" : "OFF"}
 
 
 def imprimir(texto):				# Funcion para mostrar los mensajes de la aplicacion
@@ -140,12 +142,17 @@ def ActualizarEstados(linea):
 	# Cada linea viene de la siguiente forma  -distancia,duracion,estadoTrig,estadoEco,estadoBomba,estadoValvula1,estadoValvula2,estadoValvula3
 	datos = linea.split(",")	# Obtiene la lista donde cada elemento se obtiene separando donde hay comas
 	# Lista de control usada en para que los datos de la linea coincidan con lo que hay en los estados
-	campos = ["distancia","duracion","Trig","Eco","Bomba","Valvula1","Valvula2","Valvula3"]
+	campos = ["distancia","duracion","Trig","Eco","Bomba","Valvula1","Valvula2","Valvula3","ModoManual"]
 
 	for campo in campos:
 		estado = datos.pop(0).strip()
 		if(estados[campo] != estado):
 			estados[campo] = estado
+
+	if estados["ModoManual"] == "OFF":		# Si el Modo manual esta desactivado se deshabilitan los botones
+		cambiarEstadoBotones(Tkinter.DISABLED)
+	else:
+		cambiarEstadoBotones(Tkinter.NORMAL)
 
 	# Cambiar el boton de on a off o viceversa si esta cambio en la Arduino
 	for estado in BOTONES.keys():
@@ -161,10 +168,9 @@ def ActualizarEstados(linea):
 
 def comando(boton, numero):		# Funcion que envia el comando a la arduino
 	imprimir("Se envio el comando: " + boton + ", #" + str(numero))	# Mostrar en consola
-	cambiarBoton(boton)
 	arduino.send(numero)		# Envio del numero a la arduino
 
-def cambiarBoton(estado):
+def cambiarBoton(estado):			# Funcion que muestra si el boton esta prendido o apagado de acuerdo a la informacion que viene de la arduino
 	global estados
 	if estados[estado] == "ON":
 		botones[estado].configure(image=imageOn)
@@ -172,6 +178,12 @@ def cambiarBoton(estado):
 	else:
 		botones[estado].configure(image=imageOff)
 		botones[estado].image = imageOff
+
+def cambiarEstadoBotones(estado):			# Funcion para deshabilitar todos los botones excepto el boton ModoManual
+	for boton in BOTONES.keys():
+		if boton != "ModoManual":					# Se verifica que el boton ModoManual no se deshabilite, el resto se deshabilitan
+			botones[boton].configure(state=estado)
+			botones[boton].state = estado
 
 
 def salir(signal=None, frame=None):				# Funcion que se ejecuta cuando se cierra el programa
