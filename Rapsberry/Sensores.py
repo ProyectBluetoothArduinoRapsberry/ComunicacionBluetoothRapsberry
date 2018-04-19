@@ -12,6 +12,7 @@ import re
 import signal
 import Tkinter
 import tkMessageBox
+import thread
 
 NOMBRE = "Sensores"				# Nombre que aparecen en la ventana
 ALTO = "400"					# Numero de pixeles que tendra de alto la ventana
@@ -24,11 +25,11 @@ CANT_MENSAJES = 15				# Cantidad de mensaje que se guardaran en el historial de 
 RUTA = ""						# Carpeta donde se guardara el archivo, dejar "" para guardar en la misma carpeta del programa
 CARPETA_DATOS = "DatosArduino"	# Nombre de la carpeta que guardara los datos
 LIMPIAR = set(string.printable)	# Se usa para quitar los caracteres que llegan con error de la arduino
-BOTONES = {	"Bomba": '1', 	# ["Nombre funcion"] : 'numero', el nombre de funcion puede ser cualquiera pero el numero debe coincidir con el numero del comando en arduino
-			"Valvula1": '2',
-			"Valvula2": '3',
-			"Valvula3": '4',
-			"ModoManual": '5'}
+BOTONES = {	"Bomba": 'a', 	# ["Nombre funcion"] : 'numero', el nombre de funcion puede ser cualquiera pero el numero debe coincidir con el numero del comando en arduino
+			"Valvula1": 'b',
+			"Valvula2": 'c',
+			"Valvula3": 'd',
+			"ModoManual": 'e'}
 port = 1
 address = "98:D3:32:30:D6:ED"			# Id del bluetooth del arduino
 
@@ -51,15 +52,15 @@ botones = {}							#Definicion de los botones de la ventana, se usa para cambiar
 imageOn = None							#Definicion de la imagen usada en el boton para mostrar que esta prendido
 imageOff = None							 #Definicion de la imagen usada en el boton para mostrar que esta apagado
 # Guarda los estados de los sensores y la informacion de la distancia y duracion
-estados = 	{ 	"distancia" : 0,
-				"duracion" : 0,
+estados = 	{ 	"Distancia" : 0,
+				"Duracion" : 0,
 				"Trig" : "OFF",
 				"Eco" : "OFF",
 				"Bomba" : "OFF",
 				"Valvula1" : "OFF",
 				"Valvula2" : "OFF",
 				"Valvula3" : "OFF",
-				"ModoManual" : "OFF"}
+				"ModoManual" : "OFF"}   # Estados OFF->ON
 
 
 def imprimir(texto):				# Funcion para mostrar los mensajes de la aplicacion
@@ -142,7 +143,7 @@ def ActualizarEstados(linea):
 	# Cada linea viene de la siguiente forma  -distancia,duracion,estadoTrig,estadoEco,estadoBomba,estadoValvula1,estadoValvula2,estadoValvula3
 	datos = linea.split(",")	# Obtiene la lista donde cada elemento se obtiene separando donde hay comas
 	# Lista de control usada en para que los datos de la linea coincidan con lo que hay en los estados
-	campos = ["distancia","duracion","Trig","Eco","Bomba","Valvula1","Valvula2","Valvula3","ModoManual"]
+	campos = ["Distancia","Duracion","Trig","Eco","Bomba","Valvula1","Valvula2","Valvula3","ModoManual"]
 
 	for campo in campos:
 		estado = datos.pop(0).strip()
@@ -159,16 +160,31 @@ def ActualizarEstados(linea):
 		cambiarBoton(estado)
 	# Atualizar los datos de distancia y duracionVentana
 	if distancia != None and distanciaVentana != None:		# Verifica que ya se haya creado la ventana
-		distancia.set("Distancia: " + estados["distancia"])				# Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
+		distancia.set("Distancia: " + estados["Distancia"])				# Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
 		distanciaVentana.grid(row=0, column=1, pady=5)
 
 	if duracion != None and duracionVentana != None:		# Verifica que ya se haya creado la ventana
-		duracion.set("Duracion: " + estados["duracion"])				# Las siguientes 2 lineas establecen la duracion que la arduino envian constantemente
+		duracion.set("Duracion: " + estados["Duracion"])				# Las siguientes 2 lineas establecen la duracion que la arduino envian constantemente
 		duracionVentana.grid(row=1, column=1, pady=5)
 
-def comando(boton, numero):		# Funcion que envia el comando a la arduino
-	imprimir("Se envio el comando: " + boton + ", #" + str(numero))	# Mostrar en consola
-	arduino.send(numero)		# Envio del numero a la arduino
+def comando(boton, comand):		# Funcion que envia el comando a la arduino
+	imprimir("Se envio el comando: " + boton + ", #" + comand)	# Mostrar en consola
+	estadoAnterior = estados[boton]
+
+	if estadoAnterior == "OFF":		# Si esta apagado es porque la instruccion es para prender, en este caso mayuscula es prender "ON" y minuscula para apagar "OFF"
+		comand = comand.upper()
+	#OFF -> Minuscula | ON -> Mayuscula
+	thread.start_new_thread( checkComando, (estadoAnterior, comand, boton, ) )
+
+
+
+def checkComando(estadoAnterior, comando, boton):
+	for i in xrange(3):
+		if estadoAnterior == estados[boton]:
+			arduino.sendall(comando)		# Envio del numero a la arduino
+			print comando
+			time.sleep(0.5)
+
 
 def cambiarBoton(estado):			# Funcion que muestra si el boton esta prendido o apagado de acuerdo a la informacion que viene de la arduino
 	global estados
@@ -216,11 +232,12 @@ arduino = bluetooth.BluetoothSocket( bluetooth.RFCOMM )	# Inicializar la conexio
 imprimir("Creando BOTONES...")
 imageOn = Tkinter.PhotoImage(file="images/on.png")
 imageOff = Tkinter.PhotoImage(file="images/off.png")
-
+posicion = 1
 for boton in BOTONES.keys():		# Creacion de los botones
 	botonTemporal = Tkinter.Button(ventana, text=boton, image=imageOff, compound="left", width=100, command = lambda a=boton, b=BOTONES[boton]: comando(a, b))
 	botones[boton] = botonTemporal
-	botonTemporal.grid(row=(int(BOTONES[boton])+1), column = 0)
+	botonTemporal.grid(row=(posicion+1), column = 0)
+	posicion = posicion + 1
 
 imprimir("Creando BOTONES: Finalizo correctamente")
 

@@ -22,7 +22,7 @@ bool modoManual = false;              // Variable para controlar si las valvulas
 const long INTERVALO_TRIG = 1;          // Define en milisegundos el primer delay del programa anterior
 const long INTERVALO_CONTROL = 300;     // Define en milisegundos el segundo delay del programa anterior 
 const long INTERVALO_ENVIAR = 100;    // Define en milisegundos cada cuanto se enviara la informacion a la raspberry
-const long INTERVALO_RECIBIR = 100;     // Define en milisegundos cada cuanto se recibira la informacion a la raspberry
+const long INTERVALO_RECIBIR = 1;     // Define en milisegundos cada cuanto se recibira la informacion a la raspberry
 
 ThreadController controlHilos = ThreadController(); // Funciones para la creacion de hilos
 Thread hiloRecibirComandos = Thread();              // Definicion del hilo que recibira los comandos
@@ -35,46 +35,22 @@ SoftwareSerial bluetooth(10, 11); // RX, TX
 // Tarea 2: Recibir comandos de la raspberry
 void recibirComandos(){                           // Funcion que usara el hilo para recibir los comandos
   if (bluetooth.available()){
-    int comando = bluetooth.read();               // Lee el numero que se envia desde la raspberry y lo guarda en la variable comando        
-    switch(comando){                              // Si la variable comando es igual a 1, se ejecuta la parte que dice case 1: hasta donde dice break
-                                                   // Si la variable comando es igual a 2, se ejecuta la parte que dice case 2: hasta donde dice break y asi sucesivamente
-      case '1':
-        if(digitalRead(BOMBA) == HIGH){
-          digitalWrite(BOMBA, LOW);        
-        }else{
-          digitalWrite(BOMBA, HIGH);  
-        }              
-        break;
-      case '2':
-        if(digitalRead(VALVULA1) == HIGH){
-          digitalWrite(VALVULA1, LOW);        
-        }else{
-          digitalWrite(VALVULA1, HIGH);  
-        }                  
-        break;
-      case '3':
-        if(digitalRead(VALVULA2) == HIGH){
-          digitalWrite(VALVULA2, LOW);        
-        }else{
-          digitalWrite(VALVULA2, HIGH);  
-        }                        
-        break;
-      case '4':
-        if(digitalRead(VALVULA3) == HIGH){
-          digitalWrite(VALVULA3, LOW);        
-        }else{
-          digitalWrite(VALVULA3, HIGH);  
-        }                              
-        break;
-      case '5':
-        modoManual = (modoManual == true) ? false : true;         
-        break;        
-      default:                                // En caso de que el comando recibido no sea ningun numero se ejecuta esta parte (No ejecutaria nada)
-        break;
-    }
-
+    char comando = bluetooth.read();               // Lee el numero que se envia desde la raspberry y lo guarda en la variable comando     
+    Serial.println(comando);
+    if(comando == 'a') digitalWrite(BOMBA, LOW);
+    else if(comando == 'b') digitalWrite(VALVULA1, LOW);
+    else if(comando == 'c') digitalWrite(VALVULA2, LOW);
+    else if(comando == 'd') digitalWrite(VALVULA3, LOW);
+    else if(comando == 'e') modoManual = false;
+    else if(comando == 'A') digitalWrite(BOMBA, HIGH);
+    else if(comando == 'B') digitalWrite(VALVULA1, HIGH);
+    else if(comando == 'C') digitalWrite(VALVULA2, HIGH);
+    else if(comando == 'D') digitalWrite(VALVULA3, HIGH);                
+    else if(comando == 'E') modoManual = true;
+       
   }
 }
+
 
 // Tarea 3: Enviar datos a la raspberry
 void enviarDatos(){                                                       // Funcion que usara el hilo para recibir los comandos
