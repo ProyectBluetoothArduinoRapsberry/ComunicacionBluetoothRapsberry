@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/python
 # El programa requiere instalar la libreria pybluez para el modulo bluetooth
 import time
 import bluetooth
@@ -13,6 +13,7 @@ import signal
 import Tkinter
 import tkMessageBox
 import thread
+import websocket
 
 NOMBRE = "Sensores"				# Nombre que aparecen en la ventana
 ALTO = "400"					# Numero de pixeles que tendra de alto la ventana
@@ -33,6 +34,8 @@ BOTONES = {	"Bomba": 'a', 	# ["Nombre funcion"] : 'numero', el nombre de funcion
 port = 1
 address = "98:D3:32:30:D6:ED"			# Id del bluetooth del arduino
 
+idConexion = "33175355"					# Id de la conexion 
+
 leido = ""  							# Variable que va guardando todo lo que se recibe de la arduino
 anteriorFecha = ""						# Variable que se usa para verificar la fecha de los archivos de los datos y poder separar los datos de diferentes fechas en diferentes archivos
 
@@ -48,6 +51,7 @@ distanciaVentana = None					# Variable que contendra el texto de la variable ant
 duracion = None							# Variable que tendra la duracion que se mostraran en la aplicacion
 duracionVentana = None					# Variable que contendra el texto de la variable anterior
 
+ws = None 								# Variable que permitira la conexion y envio de informacion al servidor
 botones = {}							#Definicion de los botones de la ventana, se usa para cambiar la imagen cuando pasa de on-off off-on
 imageOn = None							#Definicion de la imagen usada en el boton para mostrar que esta prendido
 imageOff = None							 #Definicion de la imagen usada en el boton para mostrar que esta apagado
@@ -61,7 +65,8 @@ estados = 	{ 	"Distancia" : 0,
 				"Valvula2" : "OFF",
 				"Valvula3" : "OFF",
 				"ModoManual" : "OFF"}   # Estados OFF->ON
-
+				
+botonServidor = None
 
 def imprimir(texto):				# Funcion para mostrar los mensajes de la aplicacion
 	global mensaje
@@ -117,6 +122,7 @@ def writeFile(linea):		# Funcion que va acumulando los datos que se reciben de l
 
 def comunicacion():			# Funcion que va leyendo los datos que llegan de la arduino
 	global leido
+	global ws
 	ready = select.select([arduino], [], [], 0.01)		# Select permite esperar datos que llegan de la Arduino sin bloquear el programa (Si no llega nada en 0.01 segundos sigue ejecutando)
 	if ready[0]:										# Verifica si llego algun dato de la arduino
 		leido += arduino.recv(1024)						# Como los datos a veces llegan cortados, se van acumulando todos los que llegan para despues organizarlos por lineas
@@ -129,8 +135,16 @@ def comunicacion():			# Funcion que va leyendo los datos que llegan de la arduin
 			rec = rec.replace('\n', '').replace('\r','')
 
 			if rec:										# Verificar que en rec si haya algo
-				writeFile(rec)							# Envia la linea a la funcion writeFile
+				writeFile(rec)							# Envia la linea a la funcion writeFile				
 				ActualizarEstados(rec)
+				try:
+					ws.send(rec)
+				except:
+					if(botonServidor.image != imageOff):
+						botonServidor.configure(image=imageOff)
+						botonServidor.image = imageOff
+						botonServidor.configure(state=Tkinter.NORMAL)
+						botonServidor.state = Tkinter.NORMAL
 
 
 			leido = leido[limite+1:]					# Deja lista la variable leido para empezar a acumular desde el ultimo separador encontrado
@@ -140,22 +154,43 @@ def comunicacion():			# Funcion que va leyendo los datos que llegan de la arduin
 
 def ActualizarEstados(linea):
 	global estados
+	global ws
+	global botonServidor
 	# Cada linea viene de la siguiente forma  -distancia,duracion,estadoTrig,estadoEco,estadoBomba,estadoValvula1,estadoValvula2,estadoValvula3
 	datos = linea.split(",")	# Obtiene la lista donde cada elemento se obtiene separando donde hay comas
 	# Lista de control usada en para que los datos de la linea coincidan con lo que hay en los estados
 	campos = ["Distancia","Duracion","Trig","Eco","Bomba","Valvula1","Valvula2","Valvula3","ModoManual"]
-
+	
+	if ws != None:
+		servidorOn = ws.connected		
+		if servidorOn:
+			botonServidor.configure(image=imageOn)
+			botonServidor.image = imageOn
+			botonServidor.configure(state=Tkinter.DISABLED)
+			botonServidor.state = Tkinter.DISABLED			
+		else:
+			botonServidor.configure(image=imageOff)
+			botonServidor.image = imageOff	
+			botonServidor.configure(state=Tkinter.NORMAL)
+			botonServidor.state = Tkinter.NORMAL				
+	else:
+		botonServidor.configure(image=imageOff)
+		botonServidor.image = imageOff
+		botonServidor.configure(state=Tkinter.NORMAL)
+		botonServidor.state = Tkinter.NORMAL				
+	
 	for campo in campos:
-		estado = datos.pop(0).strip()
-		if(estados[campo] != estado):
-			estados[campo] = estado
+		if len(datos) > 0 :
+			estado = datos.pop(0).strip()
+			if(estados[campo] != estado):
+				estados[campo] = estado
 
 	if estados["ModoManual"] == "OFF":		# Si el Modo manual esta desactivado se deshabilitan los botones
 		cambiarEstadoBotones(Tkinter.DISABLED)
 	else:
 		cambiarEstadoBotones(Tkinter.NORMAL)
 
-	# Cambiar el boton de on a off o viceversa si esta cambio en la Arduino
+	# Cambiar el boton de on a off o viceversa, si esta cambio en la Arduino
 	for estado in BOTONES.keys():
 		cambiarBoton(estado)
 	# Atualizar los datos de distancia y duracionVentana
@@ -175,8 +210,7 @@ def comando(boton, comand):		# Funcion que envia el comando a la arduino
 		comand = comand.upper()
 	#OFF -> Minuscula | ON -> Mayuscula
 	thread.start_new_thread( checkComando, (estadoAnterior, comand, boton, ) )
-
-
+	
 
 def checkComando(estadoAnterior, comando, boton):
 	for i in xrange(3):
@@ -200,11 +234,34 @@ def cambiarEstadoBotones(estado):			# Funcion para deshabilitar todos los botone
 		if boton != "ModoManual":					# Se verifica que el boton ModoManual no se deshabilite, el resto se deshabilitan
 			botones[boton].configure(state=estado)
 			botones[boton].state = estado
+			
+def conectarServidor():
+	thread.start_new_thread(conectar, ())
+	
+def conectar():
+	global ws
+	imprimir("Creando conexion con el servidor...")	
+	try:
+		ws = websocket.create_connection("ws://192.168.0.17:1337/rasp")
+		imprimir("Creando conexion con el servidor. Finalizo correctamente")			
+	except:
+		imprimir("No se pudo conectar al servidor")
 
+
+def recibirComandos():	
+	global ws	
+	result = None
+	try:		
+		result = ws.recv()				
+	except:
+		pass
+	thread.start_new_thread(recibirComandos, ())
+	
 
 def salir(signal=None, frame=None):				# Funcion que se ejecuta cuando se cierra el programa
 	global mensaje
 	global mensajeVentana
+	global ws
 	mensaje = None
 	mensajeVentana = None
 	imprimir("Cerrando conexion Bluethooth...")
@@ -213,6 +270,9 @@ def salir(signal=None, frame=None):				# Funcion que se ejecuta cuando se cierra
 
 	if ventana != None: 	# Verifica que si la ventana esta creada, si esta creada la destruye
 		ventana.quit()
+		
+	if ws != None:
+		ws.close()
 
 	imprimir("Cerrando conexion Bluethooth: Finalizo correctamente")
 	imprimir("Saliendo de la aplicacion...")
@@ -227,8 +287,6 @@ ventana.geometry(ANCHO + "x" + ALTO)   			# Establecer tamano de la ventana
 ventana.title(NOMBRE)							# Establecer nombre de la ventana
 arduino = bluetooth.BluetoothSocket( bluetooth.RFCOMM )	# Inicializar la conexion bluetooth
 
-
-
 imprimir("Creando BOTONES...")
 imageOn = Tkinter.PhotoImage(file="images/on.png")
 imageOff = Tkinter.PhotoImage(file="images/off.png")
@@ -239,6 +297,9 @@ for boton in BOTONES.keys():		# Creacion de los botones
 	botonTemporal.grid(row=(posicion+1), column = 0)
 	posicion = posicion + 1
 
+botonServidor = Tkinter.Button(ventana, text="Servidor", image=imageOff, compound="left", width=100, command = lambda: conectarServidor())
+botonServidor.grid(row=posicion+3, column = 0)
+
 imprimir("Creando BOTONES: Finalizo correctamente")
 
 imprimir("Estableciendo conexion bluetooth...")
@@ -247,6 +308,8 @@ arduino.connect((address, port))		# Establecer los datos de conexion
 arduino.setblocking(0)					# Establecer la conexion de tal manera que no bloquee el programa
 
 imprimir("Estableciendo conexion bluetooth: Finalizo correctamente")
+
+conectarServidor()
 
 imprimir("Creando Ventana...")
 
@@ -261,6 +324,8 @@ distanciaVentana.grid(row=1, column=1, pady=5)
 duracion = Tkinter.StringVar()
 duracionVentana = Tkinter.Label(ventana, textvariable=duracion, relief=Tkinter.RAISED)
 duracionVentana.grid(row=3, column=1, pady=5)
+
+thread.start_new_thread(recibirComandos, ())
 
 ventana.after(1, comunicacion)
 imprimir("Creando Ventana: Finalizo correctamente")
