@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # El programa requiere instalar la libreria pybluez para el modulo bluetooth
+import thread
 import time
 import bluetooth
 import atexit
@@ -12,12 +13,11 @@ import re
 import signal
 import Tkinter
 import tkMessageBox
-import thread
 import websocket
 
 NOMBRE = "Sensores"				# Nombre que aparecen en la ventana
 ALTO = "400"					# Numero de pixeles que tendra de alto la ventana
-ANCHO = "500"					# Numero de pixeles que tendra de ancho la ventana
+ANCHO = "600"					# Numero de pixeles que tendra de ancho la ventana
 
 SEPARADOR = '|'					# Simbolo que permite identificar entre los datos que llegan de la arduino donde empieza y termina cada linea
 LIMIT = ","						# Simbolo que separa los datos que vienen en una linea
@@ -30,7 +30,7 @@ BOTONES = {	"Bomba": 'a', 	# ["Nombre funcion"] : 'numero', el nombre de funcion
 			"Valvula1": 'b',
 			"Valvula2": 'c',
 			"Valvula3": 'd',
-			"ModoManual": 'e'}
+			"Manual": 'e'}
 port = 1
 address = "98:D3:32:30:D6:ED"			# Id del bluetooth del arduino
 
@@ -64,7 +64,7 @@ estados = 	{ 	"Distancia" : 0,
 				"Valvula1" : "OFF",
 				"Valvula2" : "OFF",
 				"Valvula3" : "OFF",
-				"ModoManual" : "OFF"}   # Estados OFF->ON
+				"Manual" : "OFF"}   # Estados OFF->ON
 				
 botonServidor = None
 
@@ -73,7 +73,12 @@ def imprimir(texto):				# Funcion para mostrar los mensajes de la aplicacion
 	global mensajeVentana
 	print texto
 	if mensaje != None and mensajeVentana != None:		# Verifica que ya se haya creado la ventana
-		historial.insert(0, texto)						# Inserta el mensaje en el historial
+		if(len(historial) > 0):
+			if(historial[0] != texto):						# verifica que el ultimo comando no sea el mismo
+				historial.insert(0, texto)						# Inserta el mensaje en el historial
+		else:
+			historial.insert(0, texto)
+			
 		if len(historial) > CANT_MENSAJES:				# Si el historial llego a la cantidad definida, se elimina el mensaje mas antiguo
 			historial.pop()								# Elimina el mensaje mas antiguo
 		mensaje.set('\n'.join(historial))				# Las siguientes 2 lineas establecen el historial de mensajes en la ventana
@@ -143,8 +148,6 @@ def comunicacion():			# Funcion que va leyendo los datos que llegan de la arduin
 					if(botonServidor.image != imageOff):
 						botonServidor.configure(image=imageOff)
 						botonServidor.image = imageOff
-						botonServidor.configure(state=Tkinter.NORMAL)
-						botonServidor.state = Tkinter.NORMAL
 
 
 			leido = leido[limite+1:]					# Deja lista la variable leido para empezar a acumular desde el ultimo separador encontrado
@@ -159,25 +162,20 @@ def ActualizarEstados(linea):
 	# Cada linea viene de la siguiente forma  -distancia,duracion,estadoTrig,estadoEco,estadoBomba,estadoValvula1,estadoValvula2,estadoValvula3
 	datos = linea.split(",")	# Obtiene la lista donde cada elemento se obtiene separando donde hay comas
 	# Lista de control usada en para que los datos de la linea coincidan con lo que hay en los estados
-	campos = ["Distancia","Duracion","Trig","Eco","Bomba","Valvula1","Valvula2","Valvula3","ModoManual"]
+	campos = ["Distancia","Duracion","Trig","Eco","Bomba","Valvula1","Valvula2","Valvula3","Manual"]
 	
 	if ws != None:
 		servidorOn = ws.connected		
 		if servidorOn:
 			botonServidor.configure(image=imageOn)
 			botonServidor.image = imageOn
-			botonServidor.configure(state=Tkinter.DISABLED)
-			botonServidor.state = Tkinter.DISABLED			
+		
 		else:
 			botonServidor.configure(image=imageOff)
-			botonServidor.image = imageOff	
-			botonServidor.configure(state=Tkinter.NORMAL)
-			botonServidor.state = Tkinter.NORMAL				
+			botonServidor.image = imageOff				
 	else:
 		botonServidor.configure(image=imageOff)
-		botonServidor.image = imageOff
-		botonServidor.configure(state=Tkinter.NORMAL)
-		botonServidor.state = Tkinter.NORMAL				
+		botonServidor.image = imageOff				
 	
 	for campo in campos:
 		if len(datos) > 0 :
@@ -185,7 +183,7 @@ def ActualizarEstados(linea):
 			if(estados[campo] != estado):
 				estados[campo] = estado
 
-	if estados["ModoManual"] == "OFF":		# Si el Modo manual esta desactivado se deshabilitan los botones
+	if estados["Manual"] == "OFF":		# Si el Modo manual esta desactivado se deshabilitan los botones
 		cambiarEstadoBotones(Tkinter.DISABLED)
 	else:
 		cambiarEstadoBotones(Tkinter.NORMAL)
@@ -215,8 +213,7 @@ def comando(boton, comand):		# Funcion que envia el comando a la arduino
 def checkComando(estadoAnterior, comando, boton):
 	for i in xrange(3):
 		if estadoAnterior == estados[boton]:
-			arduino.sendall(comando)		# Envio del numero a la arduino
-			print comando
+			arduino.sendall(comando)		# Envio del numero a la arduino			
 			time.sleep(0.5)
 
 
@@ -231,7 +228,7 @@ def cambiarBoton(estado):			# Funcion que muestra si el boton esta prendido o ap
 
 def cambiarEstadoBotones(estado):			# Funcion para deshabilitar todos los botones excepto el boton ModoManual
 	for boton in BOTONES.keys():
-		if boton != "ModoManual":					# Se verifica que el boton ModoManual no se deshabilite, el resto se deshabilitan
+		if boton != "Manual":					# Se verifica que el boton ModoManual no se deshabilite, el resto se deshabilitan
 			botones[boton].configure(state=estado)
 			botones[boton].state = estado
 			
@@ -242,7 +239,7 @@ def conectar():
 	global ws
 	imprimir("Creando conexion con el servidor...")	
 	try:
-		ws = websocket.create_connection("ws://192.168.0.17:1337/rasp")
+		ws = websocket.create_connection("ws://192.168.0.41:3000/rasp")
 		imprimir("Creando conexion con el servidor. Finalizo correctamente")			
 	except:
 		imprimir("No se pudo conectar al servidor")
@@ -251,10 +248,17 @@ def conectar():
 def recibirComandos():	
 	global ws	
 	result = None
-	try:		
-		result = ws.recv()				
-	except:
-		pass
+	try:	
+		if ws != None:	
+			result = ws.recv()	
+			if result.find(',') >= 0:
+				result = result.split(',')
+				boton = result[0]
+				command = result[1]		
+				comando(boton, command)		
+	except ValueError:
+		print "Perdida de conexion con el servidor: " + ValueError	
+		conectar()
 	thread.start_new_thread(recibirComandos, ())
 	
 
@@ -291,14 +295,23 @@ imprimir("Creando BOTONES...")
 imageOn = Tkinter.PhotoImage(file="images/on.png")
 imageOff = Tkinter.PhotoImage(file="images/off.png")
 posicion = 1
-for boton in BOTONES.keys():		# Creacion de los botones
+
+lastItem = "Manual"
+orderBoton = BOTONES.keys()
+orderBoton.sort()
+orderBoton.remove(lastItem)
+orderBoton.insert(0, lastItem)
+
+for boton in orderBoton:		# Creacion de los botones	
 	botonTemporal = Tkinter.Button(ventana, text=boton, image=imageOff, compound="left", width=100, command = lambda a=boton, b=BOTONES[boton]: comando(a, b))
 	botones[boton] = botonTemporal
 	botonTemporal.grid(row=(posicion+1), column = 0)
 	posicion = posicion + 1
 
 botonServidor = Tkinter.Button(ventana, text="Servidor", image=imageOff, compound="left", width=100, command = lambda: conectarServidor())
-botonServidor.grid(row=posicion+3, column = 0)
+botonServidor.grid(row=posicion+3, column = 0, padx=5, pady=18)
+botonServidor.configure(state=Tkinter.DISABLED)
+botonServidor.state = Tkinter.DISABLED	
 
 imprimir("Creando BOTONES: Finalizo correctamente")
 
