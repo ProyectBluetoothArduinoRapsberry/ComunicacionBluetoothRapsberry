@@ -14,10 +14,15 @@ import signal
 import Tkinter
 import tkMessageBox
 import websocket
+from PIL import Image,  ImageTk
 
 NOMBRE = "Sensores"				# Nombre que aparecen en la ventana
 ALTO = "400"					# Numero de pixeles que tendra de alto la ventana
 ANCHO = "600"					# Numero de pixeles que tendra de ancho la ventana
+
+nivelesTanque = ["NivelesTanque/nivel0.png", "NivelesTanque/nivel1.png", "NivelesTanque/nivel2.png", 
+				 "NivelesTanque/nivel3.png", "NivelesTanque/nivel4.png", "NivelesTanque/nivel5.png"
+						]
 
 SEPARADOR = '|'					# Simbolo que permite identificar entre los datos que llegan de la arduino donde empieza y termina cada linea
 LIMIT = ","						# Simbolo que separa los datos que vienen en una linea
@@ -46,25 +51,35 @@ ventana = None							# Variable que contendra toda la funcionalidad de la ventan
 
 mensaje = None							# Variable que tendra los mensajes que se mostraran en la aplicacion
 mensajeVentana = None					# Variable que contendra el texto de los mensajes de la variable anterior
+altura = None
+altura1 = None
 distancia = None						# Variable que tendra la distancia que se mostrara en la aplicacion
 distanciaVentana = None					# Variable que contendra el texto de la variable anterior
 duracion = None							# Variable que tendra la duracion que se mostraran en la aplicacion
 duracionVentana = None					# Variable que contendra el texto de la variable anterior
+distancia1 = None						# Variable que tendra la distancia que se mostrara en la aplicacion
+distanciaVentana1 = None					# Variable que contendra el texto de la variable anterior
+duracion1 = None							# Variable que tendra la duracion que se mostraran en la aplicacion
+duracionVentana1 = None					# Variable que contendra el texto de la variable anterior
+tanqueImg = None
+tanqueVentana = None
+tanqueImg1 = None
+tanqueVentana1 = None
 
 ws = None 								# Variable que permitira la conexion y envio de informacion al servidor
 botones = {}							#Definicion de los botones de la ventana, se usa para cambiar la imagen cuando pasa de on-off off-on
 imageOn = None							#Definicion de la imagen usada en el boton para mostrar que esta prendido
 imageOff = None							 #Definicion de la imagen usada en el boton para mostrar que esta apagado
 # Guarda los estados de los sensores y la informacion de la distancia y duracion
-estados = 	{ 	"Distancia" : 0,
-				"Duracion" : 0,
-				"Trig" : "OFF",
-				"Eco" : "OFF",
-				"Bomba" : "OFF",
-				"Valvula1" : "OFF",
-				"Valvula2" : "OFF",
-				"Valvula3" : "OFF",
-				"Manual" : "OFF"}   # Estados OFF->ON
+estados = 	{ 	"Altura" : 0,
+						"Altura1" : 0,
+						"Distancia" : 0,
+						 "Distancia1" : 0,
+						"Bomba" : "OFF",
+						"Valvula1" : "OFF",
+						"Valvula2" : "OFF",
+						"Valvula3" : "OFF",
+						"Manual" : "OFF"}   # Estados OFF->ON
 				
 botonServidor = None
 
@@ -82,7 +97,8 @@ def imprimir(texto):				# Funcion para mostrar los mensajes de la aplicacion
 		if len(historial) > CANT_MENSAJES:				# Si el historial llego a la cantidad definida, se elimina el mensaje mas antiguo
 			historial.pop()								# Elimina el mensaje mas antiguo
 		mensaje.set('\n'.join(historial))				# Las siguientes 2 lineas establecen el historial de mensajes en la ventana
-		mensajeVentana.grid(row=2, column=1, rowspan=CANT_MENSAJES, padx=50, pady=20)
+		#mensajeVentana.grid(row=2, column=1, rowspan=CANT_MENSAJES, padx=50, pady=20)
+		mensajeVentana.place(x=155, y=100, width=430, height=280)
 
 
 def writeFile(linea):		# Funcion que va acumulando los datos que se reciben de la Arduino y guarda esos datos en el archivo correspondiente
@@ -127,7 +143,7 @@ def writeFile(linea):		# Funcion que va acumulando los datos que se reciben de l
 
 def comunicacion():			# Funcion que va leyendo los datos que llegan de la arduino
 	global leido
-	global ws
+	global ws	
 	ready = select.select([arduino], [], [], 0.01)		# Select permite esperar datos que llegan de la Arduino sin bloquear el programa (Si no llega nada en 0.01 segundos sigue ejecutando)
 	if ready[0]:										# Verifica si llego algun dato de la arduino
 		leido += arduino.recv(1024)						# Como los datos a veces llegan cortados, se van acumulando todos los que llegan para despues organizarlos por lineas
@@ -156,13 +172,22 @@ def comunicacion():			# Funcion que va leyendo los datos que llegan de la arduin
 	ventana.after(1, comunicacion)  			# Permite ejecutar continuamente esta funcion (comunicacion-ejecuta la funcion cada 1 milesima de segundo)
 
 def ActualizarEstados(linea):
+	print linea
 	global estados
 	global ws
 	global botonServidor
+	global tanqueImg
+	global tanqueVentana
+	global tanqueImg1
+	global tanqueVentana1
+	global distancia
+	global distanciaVentana
+	global distancia1
+	global distanciaVentana1
 	# Cada linea viene de la siguiente forma  -distancia,duracion,estadoTrig,estadoEco,estadoBomba,estadoValvula1,estadoValvula2,estadoValvula3
 	datos = linea.split(",")	# Obtiene la lista donde cada elemento se obtiene separando donde hay comas
 	# Lista de control usada en para que los datos de la linea coincidan con lo que hay en los estados
-	campos = ["Distancia","Duracion","Trig","Eco","Bomba","Valvula1","Valvula2","Valvula3","Manual"]
+	campos = ["Altura","Altura1","Distancia","Distancia1","Bomba","Valvula1","Valvula2","Valvula3","Manual"]
 	
 	if ws != None:
 		servidorOn = ws.connected		
@@ -191,15 +216,33 @@ def ActualizarEstados(linea):
 	# Cambiar el boton de on a off o viceversa, si esta cambio en la Arduino
 	for estado in BOTONES.keys():
 		cambiarBoton(estado)
-	# Atualizar los datos de distancia y duracionVentana
+	# Atualizar los datos de distancia y duracionVentana 
 	if distancia != None and distanciaVentana != None:		# Verifica que ya se haya creado la ventana
-		distancia.set("Distancia: " + estados["Distancia"])				# Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
-		distanciaVentana.grid(row=0, column=1, pady=5)
+		distancia.set("Distancia: " + str(estados["Distancia"]) + "/" + str(estados["Altura"]))				# Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
+		distanciaVentana.place(x=90, y=65)
+		
+	if tanqueImg != None and tanqueVentana != None:
+		tanqueImg = ImageTk.PhotoImage(Image.open(getImageNivelTanque(float(estados["Distancia"])/float(estados["Altura"]))))
+		tanqueVentana = Tkinter.Label(ventana, image=tanqueImg, relief=Tkinter.RAISED)
+		tanqueVentana.place(x=130, y=3)
+		
+	if tanqueImg1 != None and tanqueVentana1 != None:
+		tanqueImg1 = ImageTk.PhotoImage(Image.open(getImageNivelTanque(float(estados["Distancia1"])/float(estados["Altura1"]))))
+		tanqueVentana1 = Tkinter.Label(ventana, image=tanqueImg1, relief=Tkinter.RAISED)
+		tanqueVentana1.place(x=385, y=3)	
+		
+	# Atualizar los datos de distancia y duracionVentana
+	if distancia1 != None and distanciaVentana1 != None:		# Verifica que ya se haya creado la ventana
+		distancia1.set("Distancia 1: " + estados["Distancia1"] + "/" + estados["Altura1"])				# Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
+		distanciaVentana1.place(x=340, y=65)
 
-	if duracion != None and duracionVentana != None:		# Verifica que ya se haya creado la ventana
-		duracion.set("Duracion: " + estados["Duracion"])				# Las siguientes 2 lineas establecen la duracion que la arduino envian constantemente
-		duracionVentana.grid(row=1, column=1, pady=5)
-
+def getImageNivelTanque(alturaPorcentaje):
+	if alturaPorcentaje > 0.9999:
+		alturaPorcentaje = 0.9999
+	numberImage = alturaPorcentaje * len(nivelesTanque)
+	return nivelesTanque[int(numberImage)]
+	
+		
 def comando(boton, comand):		# Funcion que envia el comando a la arduino
 	imprimir("Se envio el comando: " + boton + ", #" + comand)	# Mostrar en consola
 	estadoAnterior = estados[boton]
@@ -239,7 +282,7 @@ def conectar():
 	global ws
 	imprimir("Creando conexion con el servidor...")	
 	try:
-		ws = websocket.create_connection("ws://192.168.0.41:3000/rasp")
+		ws = websocket.create_connection("ws://sistemacontrol.herokuapp.com/rasp")
 		imprimir("Creando conexion con el servidor. Finalizo correctamente")			
 	except:
 		imprimir("No se pudo conectar al servidor")
@@ -294,7 +337,7 @@ arduino = bluetooth.BluetoothSocket( bluetooth.RFCOMM )	# Inicializar la conexio
 imprimir("Creando BOTONES...")
 imageOn = Tkinter.PhotoImage(file="images/on.png")
 imageOff = Tkinter.PhotoImage(file="images/off.png")
-posicion = 1
+posicion = 2
 
 lastItem = "Manual"
 orderBoton = BOTONES.keys()
@@ -302,14 +345,17 @@ orderBoton.sort()
 orderBoton.remove(lastItem)
 orderBoton.insert(0, lastItem)
 
+
+
 for boton in orderBoton:		# Creacion de los botones	
 	botonTemporal = Tkinter.Button(ventana, text=boton, image=imageOff, compound="left", width=100, command = lambda a=boton, b=BOTONES[boton]: comando(a, b))
 	botones[boton] = botonTemporal
-	botonTemporal.grid(row=(posicion+1), column = 0)
+	botonTemporal.place(x=5, y=posicion*45+20)
+	#botonTemporal.grid(row=(posicion+1), column = 0)
 	posicion = posicion + 1
 
 botonServidor = Tkinter.Button(ventana, text="Servidor", image=imageOff, compound="left", width=100, command = lambda: conectarServidor())
-botonServidor.grid(row=posicion+3, column = 0, padx=5, pady=18)
+botonServidor.place(x=5, y=posicion*45+20)
 botonServidor.configure(state=Tkinter.DISABLED)
 botonServidor.state = Tkinter.DISABLED	
 
@@ -328,15 +374,26 @@ imprimir("Creando Ventana...")
 
 mensaje = Tkinter.StringVar()
 mensajeVentana = Tkinter.Label(ventana, textvariable=mensaje, relief=Tkinter.RAISED, bg="white", fg="gray")
-mensajeVentana.grid(row=2, column=1, rowspan=CANT_MENSAJES, padx=50, pady=20)
+mensajeVentana.place(x=500, y=100, width=120, height=120)
+
 
 distancia = Tkinter.StringVar()
 distanciaVentana = Tkinter.Label(ventana, textvariable=distancia, relief=Tkinter.RAISED)
-distanciaVentana.grid(row=1, column=1, pady=5)
+distancia.set("Distancia: 1000/1000")				# Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
+distanciaVentana.place(x=90, y=65)
 
-duracion = Tkinter.StringVar()
-duracionVentana = Tkinter.Label(ventana, textvariable=duracion, relief=Tkinter.RAISED)
-duracionVentana.grid(row=3, column=1, pady=5)
+distancia1 = Tkinter.StringVar()
+distanciaVentana1 = Tkinter.Label(ventana, textvariable=distancia1, relief=Tkinter.RAISED)
+distancia1.set("Distancia1: 1000/1000")				# Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
+distanciaVentana1.place(x=340, y=65)
+
+tanqueImg = ImageTk.PhotoImage(Image.open(nivelesTanque[0]))
+tanqueVentana = Tkinter.Label(ventana, image=tanqueImg, relief=Tkinter.RAISED, borderwidth=0)
+tanqueVentana.place(x=130, y=3)
+
+tanqueImg1 = ImageTk.PhotoImage(Image.open(nivelesTanque[1]))
+tanqueVentana1 = Tkinter.Label(ventana, image=tanqueImg1, relief=Tkinter.RAISED, borderwidth=0)
+tanqueVentana1.place(x=385, y=3)
 
 thread.start_new_thread(recibirComandos, ())
 
