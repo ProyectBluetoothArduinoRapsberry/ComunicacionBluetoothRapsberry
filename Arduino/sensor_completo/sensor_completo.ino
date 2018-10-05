@@ -154,39 +154,18 @@ void loop() {
   
   if(tiempoActual-tiempoControl >= INTERVALO_CONTROL && IntervaloControlActive == true){                // Nuevamente un reemplazo del delay      
     tiempoControl = tiempoActual;
-    if(modoManual == false){        
-      if(distancia <= (altura*.9)  && distancia >= (altura*.2)){
-        digitalWrite(VALVULA1, HIGH); 
-      }else{
-        digitalWrite(VALVULA1, LOW);
-      }
-      if(distancia <= (altura*.8) && distancia >= (altura*.2)){
-        digitalWrite(VALVULA2, HIGH); 
-      }
-      else{
-        digitalWrite(VALVULA2, LOW);  
-      }
-      if(distancia <= (altura*.6) && distancia >= (altura*.2)){
-        digitalWrite(VALVULA3, HIGH); 
-      }
-      else{
-        digitalWrite(VALVULA3, LOW);  
-      }
-      if(distancia >= (altura*.9)){
-        digitalWrite(BOMBA, LOW);    
-      }
-      if(distancia <= (altura*.2)){
-        digitalWrite(BOMBA, HIGH);
-      }
-      if(distancia1 >= (altura1*.4) && distancia >= (altura1*.9)){
-        digitalWrite(BOMBA, HIGH);
-      }
-      if(distancia <= (altura*.2)){  // Revisar
-        digitalWrite(BOMBA, LOW);
-      }
-      if(distancia1 <= (altura1*.2)){
-        digitalWrite(BOMBA, LOW);
-      }       
+    if(modoManual == false){     
+      
+      if(distancia > (altura*.49) && distancia1 < (altura*1.0)) digitalWrite(BOMBA, HIGH);
+      else if(distancia <= (altura*.1) || distancia1 >= (altura*1.0)) digitalWrite(BOMBA, LOW);
+      else if(distancia > (altura*.1) && distancia1 < (altura*.1))
+      
+      if(distancia >= (altura*.5)) digitalWrite(VALVULA2, LOW); 
+      else if(distancia < (altura*.5)) digitalWrite(VALVULA2, HIGH); 
+      
+      if(distancia >= (altura*.3)) digitalWrite(VALVULA3, LOW); 
+      else if(distancia < (altura*.3)) digitalWrite(VALVULA3, HIGH); 
+      
     }
     IntervaloControlActive = false;
     IntervaloTrig1Active = true;
