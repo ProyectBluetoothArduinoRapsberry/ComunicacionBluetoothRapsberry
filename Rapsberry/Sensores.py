@@ -65,6 +65,7 @@ tanqueImg = None
 tanqueVentana = None
 tanqueImg1 = None
 tanqueVentana1 = None
+alturaBoton = None
 
 ws = None 								# Variable que permitira la conexion y envio de informacion al servidor
 botones = {}							#Definicion de los botones de la ventana, se usa para cambiar la imagen cuando pasa de on-off off-on
@@ -171,8 +172,7 @@ def comunicacion():			# Funcion que va leyendo los datos que llegan de la arduin
 
 	ventana.after(1, comunicacion)  			# Permite ejecutar continuamente esta funcion (comunicacion-ejecuta la funcion cada 1 milesima de segundo)
 
-def ActualizarEstados(linea):
-	print linea
+def ActualizarEstados(linea):	
 	global estados
 	global ws
 	global botonServidor
@@ -184,10 +184,15 @@ def ActualizarEstados(linea):
 	global distanciaVentana
 	global distancia1
 	global distanciaVentana1
+	global altura
+	global altura1
 	# Cada linea viene de la siguiente forma  -distancia,duracion,estadoTrig,estadoEco,estadoBomba,estadoValvula1,estadoValvula2,estadoValvula3
 	datos = linea.split(",")	# Obtiene la lista donde cada elemento se obtiene separando donde hay comas
 	# Lista de control usada en para que los datos de la linea coincidan con lo que hay en los estados
 	campos = ["Altura","Altura1","Distancia","Distancia1","Bomba","Valvula1","Valvula2","Valvula3","Manual"]
+	
+	if len(datos) != len(campos):
+		return
 	
 	if ws != None:
 		servidorOn = ws.connected		
@@ -218,21 +223,23 @@ def ActualizarEstados(linea):
 		cambiarBoton(estado)
 	# Atualizar los datos de distancia y duracionVentana 
 	if distancia != None and distanciaVentana != None:		# Verifica que ya se haya creado la ventana
+		altura = estados["Altura"]
 		distancia.set("Distancia: " + str(estados["Distancia"]) + "/" + str(estados["Altura"]))				# Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
 		distanciaVentana.place(x=90, y=65)
 		
 	if tanqueImg != None and tanqueVentana != None:
 		tanqueImg = ImageTk.PhotoImage(Image.open(getImageNivelTanque(float(estados["Distancia"])/float(estados["Altura"]))))
-		tanqueVentana = Tkinter.Label(ventana, image=tanqueImg, relief=Tkinter.RAISED)
-		tanqueVentana.place(x=130, y=3)
+		tanqueVentana = Tkinter.Label(ventana, image=tanqueImg, borderwidth = 0, relief=Tkinter.RAISED)
+		tanqueVentana.place(x=150, y=3)
 		
 	if tanqueImg1 != None and tanqueVentana1 != None:
 		tanqueImg1 = ImageTk.PhotoImage(Image.open(getImageNivelTanque(float(estados["Distancia1"])/float(estados["Altura1"]))))
-		tanqueVentana1 = Tkinter.Label(ventana, image=tanqueImg1, relief=Tkinter.RAISED)
-		tanqueVentana1.place(x=385, y=3)	
+		tanqueVentana1 = Tkinter.Label(ventana, image=tanqueImg1, borderwidth = 0, relief=Tkinter.RAISED)
+		tanqueVentana1.place(x=400, y=3)	
 		
 	# Atualizar los datos de distancia y duracionVentana
 	if distancia1 != None and distanciaVentana1 != None:		# Verifica que ya se haya creado la ventana
+		altura1 = estados["Altura1"]
 		distancia1.set("Distancia 1: " + estados["Distancia1"] + "/" + estados["Altura1"])				# Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
 		distanciaVentana1.place(x=340, y=65)
 
@@ -303,6 +310,43 @@ def recibirComandos():
 		print "Perdida de conexion con el servidor: " + ValueError	
 		conectar()
 	thread.start_new_thread(recibirComandos, ())
+	
+def enviarAltura():
+	print "test"
+	
+def cambiarAltura():
+	global Tkinter
+	global ventana
+	global altura
+	global altura1
+	
+	
+	windowAltura = Tkinter.Toplevel(ventana)
+	windowAltura.title("Cambiar Altura")
+	windowAltura.geometry("300x150")
+	Tkinter.Label(windowAltura, text="Altura").place(x=25,y=30)
+	Tkinter.Label(windowAltura, text="Altura1").place(x=25,y=60)
+	boxAltura = Tkinter.Entry(windowAltura)
+	boxAltura1 = Tkinter.Entry(windowAltura)
+	boxAltura.insert(0, altura)
+	boxAltura1.insert(0, altura1)
+	
+	boxAltura.place(x=100,y=30)
+	boxAltura1.place(x=100,y=60)
+	
+	cambiarBoton = Tkinter.Button(windowAltura, text="Cambiar", command = enviarAltura)
+	cambiarBoton.place(x=110, y=100)
+	
+	
+	alturaBoton.config(state='disable')
+	
+	def quit_win():
+		windowAltura.destroy()
+		alturaBoton.config(state='normal')
+		
+	salirBoton = Tkinter.Button(windowAltura, text="Salir", command=quit_win)
+	#windowAltura.pack(side="top", fill="both", expand=True, padx=100, pady=100)
+	windowAltura.protocol("WM_DELETE_WINDOW", quit_win)
 	
 
 def salir(signal=None, frame=None):				# Funcion que se ejecuta cuando se cierra el programa
@@ -378,22 +422,25 @@ mensajeVentana.place(x=500, y=100, width=120, height=120)
 
 
 distancia = Tkinter.StringVar()
-distanciaVentana = Tkinter.Label(ventana, textvariable=distancia, relief=Tkinter.RAISED)
-distancia.set("Distancia: 1000/1000")				# Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
+distanciaVentana = Tkinter.Label(ventana, textvariable=distancia, borderwidth = 0, relief=Tkinter.RAISED)
+distancia.set("Distancia: 0/0")				# Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
 distanciaVentana.place(x=90, y=65)
 
 distancia1 = Tkinter.StringVar()
-distanciaVentana1 = Tkinter.Label(ventana, textvariable=distancia1, relief=Tkinter.RAISED)
-distancia1.set("Distancia1: 1000/1000")				# Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
+distanciaVentana1 = Tkinter.Label(ventana, textvariable=distancia1, borderwidth = 0, relief=Tkinter.RAISED)
+distancia1.set("Distancia1: 0/0")				# Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
 distanciaVentana1.place(x=340, y=65)
 
 tanqueImg = ImageTk.PhotoImage(Image.open(nivelesTanque[0]))
-tanqueVentana = Tkinter.Label(ventana, image=tanqueImg, relief=Tkinter.RAISED, borderwidth=0)
-tanqueVentana.place(x=130, y=3)
+tanqueVentana = Tkinter.Label(ventana, image=tanqueImg, borderwidth = 0, relief="flat")
+tanqueVentana.place(x=150, y=3)
 
 tanqueImg1 = ImageTk.PhotoImage(Image.open(nivelesTanque[1]))
-tanqueVentana1 = Tkinter.Label(ventana, image=tanqueImg1, relief=Tkinter.RAISED, borderwidth=0)
-tanqueVentana1.place(x=385, y=3)
+tanqueVentana1 = Tkinter.Label(ventana, image=tanqueImg1, borderwidth = 0, relief="flat")
+tanqueVentana1.place(x=400, y=3)
+
+alturaBoton = Tkinter.Button(ventana, text="Cambiar Altura", command = cambiarAltura)
+alturaBoton.place(x=1, y=1)
 
 thread.start_new_thread(recibirComandos, ())
 
