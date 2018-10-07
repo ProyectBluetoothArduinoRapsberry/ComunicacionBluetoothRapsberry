@@ -28,13 +28,14 @@ unsigned long tiempoTrig1= 0;          // Variable para controlar los tiempos (r
 unsigned long tiempoControl= 0;       // Variable para controlar los tiempos (reemplazo de los delay) -- Segundo delay del programa anterior
 unsigned long tiempoFinal= 0;       // Variable para controlar los tiempos (reemplazo de los delay) -- Cuarto delay del programa anterior
 bool modoManual = false;              // Variable para controlar si las valvulas y la bomba se administraran mediante la arduino o manual, cuando es manual es true
+bool recibirParametros = false;
 
 const long INTERVALO_TRIG = 1;          // Define en milisegundos el primer delay del programa anterior
 const long INTERVALO_TRIG1 = 1;          // Define en milisegundos el tercer delay del programa anterior
 const long INTERVALO_CONTROL = 300;     // Define en milisegundos el segundo delay del programa anterior 
 const long INTERVALO_FINAL = 1;     // Define en milisegundos el cuarto delay del programa anterior 
 
-const long INTERVALO_ENVIAR = 100;    // Define en milisegundos cada cuanto se enviara la informacion a la raspberry
+const long INTERVALO_ENVIAR = 500;    // Define en milisegundos cada cuanto se enviara la informacion a la raspberry
 const long INTERVALO_RECIBIR = 1;     // Define en milisegundos cada cuanto se recibira la informacion a la raspberry
 
 bool IntervaloTrigActive = false;
@@ -56,7 +57,9 @@ SoftwareSerial bluetooth(10, 11); // RX, TX
 void recibirComandos(){                           // Funcion que usara el hilo para recibir los comandos
   if (bluetooth.available()){
     char comando = bluetooth.read();               // Lee el numero que se envia desde la raspberry y lo guarda en la variable comando     
-    Serial.println(comando);
+    //Serial.println(comando);
+     print("test");
+     print(String(comando));
     if(comando == 'a') digitalWrite(BOMBA, LOW);
     else if(comando == 'b') digitalWrite(VALVULA1, LOW);
     else if(comando == 'c') digitalWrite(VALVULA2, LOW);
@@ -67,6 +70,9 @@ void recibirComandos(){                           // Funcion que usara el hilo p
     else if(comando == 'C') digitalWrite(VALVULA2, HIGH);
     else if(comando == 'D') digitalWrite(VALVULA3, HIGH);                
     else if(comando == 'E') modoManual = true;
+    else if(comando == 'f') {
+     
+    }
        
   }
 }
@@ -83,13 +89,14 @@ void enviarDatos(){                                                       // Fun
   String estadoValvula2 = (digitalRead(VALVULA2) == HIGH)?("ON"):("OFF");
   String estadoValvula3 = (digitalRead(VALVULA3) == HIGH)?("ON"):("OFF");  // Se repite lo de la anterior explicacion hasta aqui
   String estadoModoManual = (modoManual == true) ? "ON" : "OFF";
+  String estadoRecibirParametros = (recibirParametros == true) ? "ON" : "OFF";
   
   //String linea = LIMIT + estadoTrig + LIMIT + estadoTrig1 + LIMIT + estadoEco 
   //+ LIMIT + estadoEco1 + LIMIT + estadoBomba + LIMIT + estadoValvula1 + LIMIT 
   //+ estadoValvula2 + LIMIT + estadoValvula3 + LIMIT + estadoModoManual + SEPARADOR;                // En la variable linea queda la informacion de los estados de los pines, donde cada uno puede ser ON o OFF y estan separados por comas
   
-  String linea = LIMIT + estadoBomba + LIMIT + estadoValvula1 + LIMIT 
-  + estadoValvula2 + LIMIT + estadoValvula3 + LIMIT + estadoModoManual + SEPARADOR;                // En la variable linea queda la informacion de los estados de los pines, donde cada uno puede ser ON o OFF y estan separados por comas
+  String linea = LIMIT + estadoBomba + LIMIT + estadoValvula1 + LIMIT + estadoValvula2 + 
+    LIMIT + estadoValvula3 + LIMIT + estadoRecibirParametros + LIMIT + estadoModoManual + SEPARADOR;                // En la variable linea queda la informacion de los estados de los pines, donde cada uno puede ser ON o OFF y estan separados por comas
   
   bluetooth.println("     ");
   bluetooth.println(String(altura,2)); 
@@ -104,7 +111,11 @@ void enviarDatos(){                                                       // Fun
   //bluetooth.println(LIMIT);                                                     // Para separar el dato de distancia del dato duracion se adiciona entre ellos una coma
   //bluetooth.println(duracion1);                                                  // Se envia el dato de duracion
   bluetooth.println(linea);                                                     // Y finalmente se envia lo que esta guardado en la variable linea
-  Serial.println(String(duracion) + " " +  String(duracion1) + " " +  String(distancia) + " " + String(distancia1));
+
+}
+
+void print(String a){
+  Serial.println(a);
 }
 
 void setup() {
@@ -131,17 +142,24 @@ void setup() {
 
   controlHilos.add(&hiloRecibirComandos);                                          // Esta funcion trabaja sola y se encarga de gestionar los hilos, por lo cual se ponen los nombres de los hilos
   controlHilos.add(&hiloEnviarDatos);
+
+  digitalWrite(VALVULA1, HIGH);
+  modoManual = false;
+   Serial.println("TEST");
 }
 
 // Tarea 1: gestion de los sensores
 void loop() {  
   controlHilos.run();                                                     // Se indica ala funcion que gestiona los hilos que los arranque
-
+  
+  
   digitalWrite(TRIG, HIGH); 
   unsigned long tiempoActual = millis();                                  // Obtiene el tiempo actual
-  
+  //Serial.println(String(distancia >= (altura*.5) ? "T":"F") + ", tiempo: " + String(tiempoActual));
+  //Serial.println("1. " + String(tiempoActual) + " " + String(tiempoTrig) + " " +   String(tiempoActual-tiempoTrig) + " " +  String(tiempoActual-tiempoTrig >= INTERVALO_TRIG ? "T":"F")+ " " +  String(IntervaloTrigActive ? "T":"F"));
   if(tiempoActual-tiempoTrig >= INTERVALO_TRIG && IntervaloTrigActive == true){                            // el tiempoTrig empieza en cero, el tiempoActual va aumentando progresivamente
                                         // por lo cual, tiempoActual - tiempoTrig va aumentando y cuando es mayor que INTERVALO_TRIG
+                   
     tiempoTrig = tiempoActual;                                            // entra al if, reeemplazando el delay         
     digitalWrite(TRIG, LOW);                          // tiempoTrig seria igual a tiempoActual por lo cual, mas adelante nuevamente la resta dara cero y aumentara progresivamente
     duracion = pulseIn(ECO, HIGH);
@@ -152,13 +170,16 @@ void loop() {
     tiempoControl = tiempoActual;
   }
   
-  if(tiempoActual-tiempoControl >= INTERVALO_CONTROL && IntervaloControlActive == true){                // Nuevamente un reemplazo del delay      
+  if(tiempoActual-tiempoControl >= INTERVALO_CONTROL && IntervaloControlActive == true){                // Nuevamente un reemplazo del delay          
     tiempoControl = tiempoActual;
+    
     if(modoManual == false){     
       
       if(distancia > (altura*.49) && distancia1 < (altura*1.0)) digitalWrite(BOMBA, HIGH);
       else if(distancia <= (altura*.1) || distancia1 >= (altura*1.0)) digitalWrite(BOMBA, LOW);
-      else if(distancia > (altura*.1) && distancia1 < (altura*.1))
+      else if(distancia > (altura*.1) && distancia1 < (altura*.1)) digitalWrite(BOMBA, HIGH);
+
+     
       
       if(distancia >= (altura*.5)) digitalWrite(VALVULA2, LOW); 
       else if(distancia < (altura*.5)) digitalWrite(VALVULA2, HIGH); 
@@ -174,7 +195,7 @@ void loop() {
   
     
   digitalWrite(TRIG1, HIGH);  
-  if(tiempoActual-tiempoTrig1 >= INTERVALO_TRIG && IntervaloTrig1Active == true){                // Otro un reemplazo del delay      
+  if(tiempoActual-tiempoTrig1 >= INTERVALO_TRIG && IntervaloTrig1Active == true){                // Otro un reemplazo del delay          
     tiempoTrig1 = tiempoActual;
     digitalWrite(TRIG1, LOW);   
     duracion1 = pulseIn(ECO1, HIGH);
@@ -185,6 +206,7 @@ void loop() {
   }
   
   if(tiempoActual-tiempoFinal >= INTERVALO_CONTROL && IntervaloFinalActive == true){                // Otro un reemplazo del delay      
+    
     IntervaloFinalActive = false;
     IntervaloTrigActive = true;
     tiempoTrig = tiempoActual;            

@@ -80,6 +80,7 @@ estados = 	{ 	"Altura" : 0,
 						"Valvula1" : "OFF",
 						"Valvula2" : "OFF",
 						"Valvula3" : "OFF",
+						"RcvParametros" : "OFF",
 						"Manual" : "OFF"}   # Estados OFF->ON
 				
 botonServidor = None
@@ -189,7 +190,7 @@ def ActualizarEstados(linea):
 	# Cada linea viene de la siguiente forma  -distancia,duracion,estadoTrig,estadoEco,estadoBomba,estadoValvula1,estadoValvula2,estadoValvula3
 	datos = linea.split(",")	# Obtiene la lista donde cada elemento se obtiene separando donde hay comas
 	# Lista de control usada en para que los datos de la linea coincidan con lo que hay en los estados
-	campos = ["Altura","Altura1","Distancia","Distancia1","Bomba","Valvula1","Valvula2","Valvula3","Manual"]
+	campos = ["Altura","Altura1","Distancia","Distancia1","Bomba","Valvula1","Valvula2","Valvula3","RcvParametros","Manual"]
 	
 	if len(datos) != len(campos):
 		return
@@ -243,10 +244,11 @@ def ActualizarEstados(linea):
 		distancia1.set("Distancia 1: " + estados["Distancia1"] + "/" + estados["Altura1"])				# Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
 		distanciaVentana1.place(x=340, y=65)
 
-def getImageNivelTanque(alturaPorcentaje):
+def getImageNivelTanque(alturaPorcentaje):	
 	if alturaPorcentaje > 0.9999:
-		alturaPorcentaje = 0.9999
-	numberImage = alturaPorcentaje * len(nivelesTanque)
+		alturaPorcentaje = 0.9999	
+	alturaPorcentaje = 0.9999 - alturaPorcentaje
+	numberImage = alturaPorcentaje * len(nivelesTanque)	
 	return nivelesTanque[int(numberImage)]
 	
 		
@@ -311,8 +313,31 @@ def recibirComandos():
 		conectar()
 	thread.start_new_thread(recibirComandos, ())
 	
-def enviarAltura():
-	print "test"
+	
+	
+def enviarAltura(boxAltura, boxAltura1):
+		
+	alturaNueva = boxAltura.get()
+	alturaNueva1 = boxAltura1.get()	
+	
+	thread.start_new_thread( checkEnvioALtura, (alturaNueva, alturaNueva1,) )
+
+
+def checkEnvioALtura(alturaNueva, alturaNueva1):
+	global altura
+	global altura1	
+	
+	for i in xrange(3):
+		if estados["RcvParametros"] == "OFF":		
+			arduino.sendall('f')		# Envio del numero a la arduino		
+			print "test"	
+			time.sleep(0.5)		
+	
+	if(estados["RcvParametros"] == "ON"):	
+		for i in xrange(3):
+			if float(alturaNueva) != float(altura) or float(alturaNueva1) != float(altura1) :		
+				arduino.sendall(str(alturaNueva) + "," + str(alturaNueva1))		# Envio del numero a la arduino			
+				time.sleep(0.5)
 	
 def cambiarAltura():
 	global Tkinter
@@ -334,7 +359,7 @@ def cambiarAltura():
 	boxAltura.place(x=100,y=30)
 	boxAltura1.place(x=100,y=60)
 	
-	cambiarBoton = Tkinter.Button(windowAltura, text="Cambiar", command = enviarAltura)
+	cambiarBoton = Tkinter.Button(windowAltura, text="Cambiar", command = lambda a=boxAltura, b=boxAltura1: enviarAltura(a,b))
 	cambiarBoton.place(x=110, y=100)
 	
 	
