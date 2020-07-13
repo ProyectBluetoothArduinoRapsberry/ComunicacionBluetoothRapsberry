@@ -18,6 +18,7 @@ import re
 import signal
 import tkinter
 import websocket
+import configparser
 from PIL import Image,ImageTk
 
 NOMBRE = "Sensores"             # Nombre que aparecen en la ventana
@@ -156,13 +157,9 @@ def comunicacion():         # Funcion que va leyendo los datos que llegan de la 
         limite = leido.find(SEPARADOR)                  # Busca si en lo que va acumulado esta el separador que identifica donde empiezan y termina cada linea        
         if limite != -1:                                # Verifica si se encontro el Separador
             rec = leido[:limite]                        # Obtiene una linea de lo que va acumulado desde ultimo separador encontrado hasta el siguiente
-            rec = ''.join(list(filter(lambda x: x in LIMPIAR, rec)))   # Las Siguientes dos lineas eliminar cualquier letra que sea diferente a lo que se envio desde la arduino
-            print(rec)
-            print(type(rec))
-            
+            rec = ''.join(list(filter(lambda x: x in LIMPIAR, rec)))   # Las Siguientes dos lineas eliminar cualquier letra que sea diferente a lo que se envio desde la arduino                            
             rec = rec.replace('\n', '').replace('\r','')
             
-
             if rec:                                     # Verificar que en rec si haya algo
                 writeFile(rec)                          # Envia la linea a la funcion writeFile             
                 ActualizarEstados(rec)
@@ -231,7 +228,7 @@ def ActualizarEstados(linea):
     # Atualizar los datos de distancia y duracionVentana 
     if distancia != None and distanciaVentana != None:      # Verifica que ya se haya creado la ventana
         altura = estados["Altura"]
-        distancia.set("Distancia: " + str(estados["Distancia"]) + "/" + str(estados["Altura"]))             # Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
+        distancia.set("Distancia (cm): " + str(estados["Distancia"]) + "/" + str(estados["Altura"]))             # Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
         distanciaVentana.place(x=90, y=65)
         
     if tanqueImg != None and tanqueVentana != None:
@@ -247,7 +244,7 @@ def ActualizarEstados(linea):
     # Atualizar los datos de distancia y duracionVentana
     if distancia1 != None and distanciaVentana1 != None:        # Verifica que ya se haya creado la ventana
         altura1 = estados["Altura1"]
-        distancia1.set("Distancia 1: " + estados["Distancia1"] + "/" + estados["Altura1"])              # Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
+        distancia1.set("Distancia 1 (cm): " + estados["Distancia1"] + "/" + estados["Altura1"])              # Las siguientes 2 lineas establecen la distancia que la arduino envian constantemente
         distanciaVentana1.place(x=340, y=65)
 
 def getImageNivelTanque(alturaPorcentaje):  
@@ -420,16 +417,17 @@ orderBoton = sorted(orderBoton)
 orderBoton.remove(lastItem)
 orderBoton.insert(0, lastItem)
 
-
-
+config = configparser.ConfigParser()
+config.read('Sensores.ini')
+    
 for boton in orderBoton:        # Creacion de los botones   
-    botonTemporal = tkinter.Button(ventana, text=boton, image=imageOff, compound="left", width=100, command = lambda a=boton, b=BOTONES[boton]: comando(a, b))
+    botonTemporal = tkinter.Button(ventana, text=config['BOTONES'][boton], image=imageOff, compound="left", width=110, command = lambda a=boton, b=BOTONES[boton]: comando(a, b))
     botones[boton] = botonTemporal
     botonTemporal.place(x=5, y=posicion*45+20)
     #botonTemporal.grid(row=(posicion+1), column = 0)
     posicion = posicion + 1
 
-botonServidor = tkinter.Button(ventana, text="Servidor", image=imageOff, compound="left", width=100, command = lambda: conectarServidor())
+botonServidor = tkinter.Button(ventana, text="Servidor", image=imageOff, compound="left", width=110, command = lambda: conectarServidor())
 botonServidor.place(x=5, y=posicion*45+20)
 botonServidor.configure(state=tkinter.DISABLED)
 botonServidor.state = tkinter.DISABLED  
